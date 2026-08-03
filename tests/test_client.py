@@ -3,7 +3,11 @@ from types import SimpleNamespace
 
 import pytest
 
-from icloud_reminders_mcp.client import RemindersClient, parse_due
+from icloud_reminders_mcp.client import (
+    RemindersClient,
+    _default_service_factory,
+    parse_due,
+)
 from icloud_reminders_mcp.config import Settings
 
 
@@ -76,6 +80,55 @@ class FakeService:
         self.is_trusted_session = True
         self.requires_2fa = False
         self.requires_2sa = False
+
+
+def test_default_factory_hydrates_saved_session_without_fresh_login(monkeypatch):
+    calls = []
+
+    class FakePyiCloudService:
+        def __init__(self, username, **kwargs):
+            calls.append({"username": username, **kwargs})
+
+        def get_auth_status(self):
+            return {"authenticated": True}
+
+    monkeypatch.setattr("pyicloud.PyiCloudService", FakePyiCloudService)
+    monkeypatch.setattr(
+        "pyicloud.utils.get_password_from_keyring", lambda username: "saved-password"
+    )
+
+    result = _default_service_factory(Settings(username="user@example.com"))
+
+    assert isinstance(result, FakePyiCloudService)
+    assert calls == [
+        {
+            "username": "user@example.com",
+            "password": "saved-password",
+            "china_mainland": False,
+            "authenticate": False,
+        }
+    ]
+
+
+def test_default_factory_reauthenticates_when_saved_session_expired(monkeypatch):
+    calls = []
+
+    class FakePyiCloudService:
+        def __init__(self, username, **kwargs):
+            calls.append({"username": username, **kwargs})
+
+        def get_auth_status(self):
+            return {"authenticated": False}
+
+    monkeypatch.setattr("pyicloud.PyiCloudService", FakePyiCloudService)
+    monkeypatch.setattr(
+        "pyicloud.utils.get_password_from_keyring", lambda username: "saved-password"
+    )
+
+    _default_service_factory(Settings(username="user@example.com"))
+
+    assert calls[-1]["authenticate"] is True
+    assert calls[-1]["password"] == "saved-password"
 
 
 @pytest.fixture

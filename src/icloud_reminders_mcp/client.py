@@ -12,10 +12,28 @@ ServiceFactory = Callable[[Settings], Any]
 
 def _default_service_factory(settings: Settings) -> Any:
     from pyicloud import PyiCloudService
+    from pyicloud.utils import get_password_from_keyring
 
+    password = get_password_from_keyring(settings.username)
+    session_service = PyiCloudService(
+        settings.username,
+        password=password,
+        china_mainland=settings.china_mainland,
+        authenticate=False,
+    )
+    status = session_service.get_auth_status()
+    if status["authenticated"]:
+        return session_service
+    if password is None:
+        raise RuntimeError(
+            "No authenticated iCloud session or keyring password was found. "
+            "Run 'icloud auth login' interactively and restart the MCP server."
+        )
     return PyiCloudService(
         settings.username,
+        password=password,
         china_mainland=settings.china_mainland,
+        authenticate=True,
     )
 
 

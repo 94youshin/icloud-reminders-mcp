@@ -1,0 +1,89 @@
+---
+name: pyicloud-reminders-mcp
+description: Install, configure, and safely use the local Apple Reminders MCP server backed by pyicloud. Use when the user wants Codex on Windows, Linux, or macOS to list Apple reminder lists, create parent reminders or child tasks, update or complete reminders, or delete reminders after confirmation through iCloud without browser automation.
+---
+
+# Apple Reminders MCP
+
+Use the bundled Python MCP server to manage Apple Reminders through the current
+`pyicloud` CloudKit v2 reminders service. Treat it as an unofficial iCloud web
+integration and consult [references/pyicloud-notes.md](references/pyicloud-notes.md)
+when authentication, list selection, dates, or API compatibility matter.
+
+## Install
+
+From this skill directory on Windows PowerShell:
+
+```powershell
+py -3.12 -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -e .
+```
+
+Use Python 3.10 or newer. The dependency includes the `icloud` CLI needed for
+interactive authentication.
+
+## Authenticate
+
+Run authentication locally in an interactive terminal before configuring MCP:
+
+```powershell
+.\.venv\Scripts\icloud.exe auth login --username "APPLE_ID"
+```
+
+For a mainland China account, append `--china-mainland`. Complete password and
+2FA prompts locally. Never ask the user to paste an Apple password or 2FA code
+into chat, an environment variable, source code, or MCP configuration.
+
+## Configure Codex
+
+Add a stdio server entry to the user's Codex MCP configuration. Use absolute
+paths and configure only the Apple ID username plus non-secret settings:
+
+```toml
+[mcp_servers.apple-reminders]
+command = "C:/absolute/path/pyicloud-reminders-mcp/.venv/Scripts/python.exe"
+args = ["-m", "pyicloud_reminders_mcp"]
+
+[mcp_servers.apple-reminders.env]
+ICLOUD_USERNAME = "APPLE_ID"
+ICLOUD_CHINA_MAINLAND = "false"
+ICLOUD_DEFAULT_REMINDER_LIST = "Work"
+```
+
+Restart Codex after changing MCP configuration. Omit the default list when the
+user prefers selecting a list each time.
+
+## Use safely
+
+Follow this order:
+
+1. Call `check_session_status` when authentication may have expired.
+2. Call `list_reminder_lists` before a write if the destination is ambiguous.
+3. Prefer list IDs over titles for writes.
+4. Convert natural-language dates to timezone-aware ISO 8601 before calling a
+   tool, for example `2026-08-31T18:00:00+08:00`.
+5. Create the parent first, then pass its returned ID as
+   `parent_reminder_id` for each child task.
+6. For deletion, show the exact reminder to the user and obtain approval before
+   calling `delete_reminder` with `confirm=true`.
+
+Available tools:
+
+- `check_session_status`
+- `list_reminder_lists`
+- `list_reminders`
+- `get_reminder`
+- `create_reminder`
+- `update_reminder`
+- `set_reminder_completed`
+- `delete_reminder`
+
+Priority mapping is `0` none, `1` high, `5` medium, and `9` low. Use
+`all_day=true` for date-only reminders. Pass `parent_reminder_id` only after the
+parent has been created successfully.
+
+## Recover authentication
+
+If a tool reports 2FA, an untrusted session, changed Apple terms, or login
+failure, stop the MCP process, rerun the interactive `icloud auth login`
+command, and restart Codex. Do not automate Apple ID passwords or 2FA.

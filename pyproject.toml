@@ -1,0 +1,29 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "pyicloud-reminders-mcp"
+version = "0.1.0"
+description = "A safe MCP server for Apple Reminders powered by pyicloud"
+requires-python = ">=3.10"
+dependencies = [
+  "mcp>=1.27,<2",
+  "pyicloud[cli]>=2.6.5,<3",
+]
+
+[project.scripts]
+pyicloud-reminders-mcp = "pyicloud_reminders_mcp.server:main"
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8,<10",
+  "pyyaml>=6,<7",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/pyicloud_reminders_mcp"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

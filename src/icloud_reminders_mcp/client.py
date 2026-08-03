@@ -91,6 +91,8 @@ def serialize_reminder(item: Any) -> dict[str, Any]:
         "all_day": item.all_day,
         "time_zone": item.time_zone,
         "parent_reminder_id": item.parent_reminder_id,
+        "hashtag_ids": list(getattr(item, "hashtag_ids", [])),
+        "recurrence_rule_ids": list(getattr(item, "recurrence_rule_ids", [])),
         "created": _iso(item.created),
         "modified": _iso(item.modified),
     }
@@ -167,6 +169,178 @@ class RemindersClient:
 
     def get_item(self, reminder_id: str) -> dict[str, Any]:
         return serialize_reminder(self.reminders.get(reminder_id))
+
+    def list_subtasks(
+        self,
+        parent_reminder_id: str,
+        include_completed: bool = False,
+        limit: int = 200,
+    ) -> list[dict[str, Any]]:
+        if not 1 <= limit <= 1000:
+            raise ValueError("limit must be between 1 and 1000")
+        parent = self.reminders.get(parent_reminder_id)
+        result = self.reminders.list_reminders(
+            parent.list_id,
+            include_completed=include_completed,
+            results_limit=1000,
+        )
+        children = [
+            serialize_reminder(item)
+            for item in result.reminders
+            if item.parent_reminder_id == parent_reminder_id
+        ]
+        return children[:limit]
+
+    def create_subtask(
+        self,
+        parent_reminder_id: str,
+        *,
+        title: str,
+        description: str = "",
+        due: str | None = None,
+        priority: int = 0,
+        flagged: bool = False,
+        all_day: bool = False,
+    ) -> dict[str, Any]:
+        parent = self.reminders.get(parent_reminder_id)
+        return self.create_item(
+            title=title,
+            list_id=parent.list_id,
+            description=description,
+            due=due,
+            priority=priority,
+            flagged=flagged,
+            all_day=all_day,
+            parent_reminder_id=parent_reminder_id,
+        )
+
+    @staticmethod
+    def _serialize_recurrence_rule(rule: Any) -> dict[str, Any]:
+        frequency = getattr(rule.frequency, "name", str(rule.frequency)).lower()
+        return {
+            "id": rule.id,
+            "reminder_id": rule.reminder_id,
+            "frequency": frequency,
+            "interval": rule.interval,
+            "occurrence_count": rule.occurrence_count,
+            "first_day_of_week": rule.first_day_of_week,
+        }
+
+    def list_recurrence_rules(self, reminder_id: str) -> list[dict[str, Any]]:
+        item = self.reminders.get(reminder_id)
+        return [
+            self._serialize_recurrence_rule(rule)
+            for rule in self.reminders.recurrence_rules_for(item)
+        ]
+
+    def set_recurrence(
+        self,
+        reminder_id: str,
+        *,
+        frequency: str,
+        interval: int = 1,
+        occurrence_count: int = 0,
+        first_day_of_week: int = 0,
+    ) -> dict[str, Any]:
+        from pyicloud.services.reminders.models import RecurrenceFrequency
+
+        frequencies = {
+            "daily": RecurrenceFrequency.DAILY,
+            "weekly": RecurrenceFrequency.WEEKLY,
+            "monthly": RecurrenceFrequency.MONTHLY,
+            "yearly": RecurrenceFrequency.YEARLY,
+        }
+        normalized = frequency.strip().casefold()
+        if normalized not in frequencies:
+            raise ValueError("frequency must be daily, weekly, monthly, or yearly")
+        if interval < 1:
+            raise ValueError("interval must be at least 1")
+        if occurrence_count < 0:
+            raise ValueError("occurrence_count must be 0 or greater")
+        if not 0 <= first_day_of_week <= 6:
+            raise ValueError("first_day_of_week must be between 0 and 6")
+
+        item = self.reminders.get(reminder_id)
+        existing = list(self.reminders.recurrence_rules_for(item))
+        if len(existing) > 1:
+            raise RuntimeError(
+                "The reminder has multiple recurrence rules; clear them explicitly first"
+            )
+        if existing:
+            rule = existing[0]
+            self.reminders.update_recurrence_rule(
+                rule,
+                frequency=frequencies[normalized],
+                interval=interval,
+                occurrence_count=occurrence_count,
+                first_day_of_week=first_day_of_week,
+            )
+            rule.frequency = frequencies[normalized]
+            rule.interval = interval
+            rule.occurrence_count = occurrence_count
+            rule.first_day_of_week = first_day_of_week
+        else:
+            rule = self.reminders.create_recurrence_rule(
+                item,
+                frequency=frequencies[normalized],
+                interval=interval,
+                occurrence_count=occurrence_count,
+                first_day_of_week=first_day_of_week,
+            )
+        return self._serialize_recurrence_rule(rule)
+
+    def clear_recurrence(self, reminder_id: str, *, confirm: bool) -> dict[str, Any]:
+        if not confirm:
+            raise ValueError("Clearing recurrence requires confirm=true")
+        item = self.reminders.get(reminder_id)
+        rules = list(self.reminders.recurrence_rules_for(item))
+        for rule in rules:
+            self.reminders.delete_recurrence_rule(item, rule)
+        return {"cleared": True, "reminder_id": reminder_id, "deleted_rules": len(rules)}
+
+    @staticmethod
+    def _serialize_hashtag(tag: Any) -> dict[str, Any]:
+        return {
+            "id": tag.id,
+            "reminder_id": tag.reminder_id,
+            "name": tag.name,
+            "created": _iso(tag.created),
+        }
+
+    def list_tags(self, reminder_id: str) -> list[dict[str, Any]]:
+        item = self.reminders.get(reminder_id)
+        return [self._serialize_hashtag(tag) for tag in self.reminders.tags_for(item)]
+
+    def add_tag(self, reminder_id: str, name: str) -> dict[str, Any]:
+        normalized = name.strip().lstrip("#").strip()
+        if not normalized:
+            raise ValueError("tag name must not be empty")
+        item = self.reminders.get(reminder_id)
+        existing = list(self.reminders.tags_for(item))
+        for tag in existing:
+            if tag.name.casefold() == normalized.casefold():
+                return {"created": False, "tag": self._serialize_hashtag(tag)}
+        tag = self.reminders.create_hashtag(item, normalized)
+        return {"created": True, "tag": self._serialize_hashtag(tag)}
+
+    def remove_tag(self, reminder_id: str, tag_id_or_name: str) -> dict[str, Any]:
+        selector = tag_id_or_name.strip().lstrip("#").strip()
+        if not selector:
+            raise ValueError("tag_id_or_name must not be empty")
+        item = self.reminders.get(reminder_id)
+        matches = [
+            tag
+            for tag in self.reminders.tags_for(item)
+            if tag.id == selector or tag.name.casefold() == selector.casefold()
+        ]
+        if not matches:
+            raise ValueError(f"Tag {tag_id_or_name!r} was not found on the reminder")
+        if len(matches) > 1:
+            raise ValueError("More than one tag matches that name; use the tag ID")
+        tag = matches[0]
+        snapshot = self._serialize_hashtag(tag)
+        self.reminders.delete_hashtag(item, tag)
+        return {"removed": True, "tag": snapshot}
 
     def create_item(
         self,

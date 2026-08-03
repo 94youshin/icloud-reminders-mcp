@@ -12,7 +12,7 @@ without macOS, AppleScript, or browser automation.
 
 ## Capabilities
 
-The server exposes eight MCP tools:
+The server exposes fifteen MCP tools:
 
 | Tool | Capability |
 | --- | --- |
@@ -20,14 +20,24 @@ The server exposes eight MCP tools:
 | `list_reminder_lists` | List reminder lists and stable IDs |
 | `list_reminders` | List active or completed reminders |
 | `get_reminder` | Read one reminder by ID |
-| `create_reminder` | Create reminders and child tasks |
+| `create_reminder` | Create a reminder, optionally with a parent ID |
+| `list_subtasks` | List the immediate children of a parent reminder |
+| `create_subtask` | Create a child task in its parent's list |
 | `update_reminder` | Change title, notes, due date, priority, flag, or all-day state |
 | `set_reminder_completed` | Complete or reopen a reminder |
+| `get_reminder_recurrence` | Read recurrence rules |
+| `set_reminder_recurrence` | Create or update a daily, weekly, monthly, or yearly rule |
+| `clear_reminder_recurrence` | Clear recurrence only when `confirm=true` is supplied |
+| `list_reminder_tags` | List hashtags attached to a reminder |
+| `add_reminder_tag` | Add a hashtag idempotently |
+| `remove_reminder_tag` | Remove a hashtag by ID or exact name |
 | `delete_reminder` | Delete only when `confirm=true` is supplied |
 
 Additional behavior:
 
-- Parent/child tasks through `parent_reminder_id`
+- Parent/child tasks with dedicated create and list tools
+- Daily, weekly, monthly, and yearly recurrence with interval and occurrence limits
+- Hashtag creation, lookup, and removal
 - Timezone-aware due dates and all-day reminders
 - Beijing time (`Asia/Shanghai`, UTC+08:00) for all inputs and outputs
 - Apple priority values: `0` none, `1` high, `5` medium, `9` low
@@ -164,6 +174,8 @@ fails safely instead of choosing the wrong list.
 - "List my Apple reminder lists."
 - "Create an all-day reminder on 31 August in the Work list."
 - "Create a parent task named Release v2, then add these rows as child tasks."
+- "Repeat this reminder every two weeks, for six occurrences."
+- "Add the tags #ReleaseV2 and #InterfaceDesign to this reminder."
 - "Mark reminder `REMINDER_ID` completed."
 - "Show reminder `REMINDER_ID`, then ask before deleting it."
 
@@ -183,7 +195,7 @@ python -m pytest
 ```
 
 The test suite covers list selection, ISO date handling, child-task creation,
-partial updates, completion, deletion confirmation, and a real stdio MCP
+recurrence, hashtags, partial updates, completion, deletion confirmation, and a real stdio MCP
 initialize/list-tools exchange. Tests use fake iCloud services and do not change
 the developer's reminders.
 

@@ -1,4 +1,4 @@
 interface:
   display_name: "iCloud Reminders MCP"
-  short_description: "Manage Apple reminders through pyicloud"
-  default_prompt: "Use $icloud-reminders-mcp to list or manage my Apple reminders safely."
+  short_description: "Manage Apple reminders, subtasks, repeats, and tags"
+  default_prompt: "Use $icloud-reminders-mcp to manage my Apple reminders, subtasks, recurrence, and tags safely."

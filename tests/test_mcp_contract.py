@@ -10,9 +10,17 @@ EXPECTED_TOOLS = {
     "list_reminder_lists",
     "list_reminders",
     "get_reminder",
+    "list_subtasks",
+    "create_subtask",
     "create_reminder",
     "update_reminder",
     "set_reminder_completed",
+    "get_reminder_recurrence",
+    "set_reminder_recurrence",
+    "clear_reminder_recurrence",
+    "list_reminder_tags",
+    "add_reminder_tag",
+    "remove_reminder_tag",
     "delete_reminder",
 }
 
@@ -33,3 +41,7 @@ def test_stdio_server_exposes_expected_tools():
     assert {tool.name for tool in result.tools} == EXPECTED_TOOLS
     delete_tool = next(tool for tool in result.tools if tool.name == "delete_reminder")
     assert delete_tool.inputSchema["properties"]["confirm"]["default"] is False
+    clear_tool = next(
+        tool for tool in result.tools if tool.name == "clear_reminder_recurrence"
+    )
+    assert clear_tool.inputSchema["properties"]["confirm"]["default"] is False

@@ -12,7 +12,7 @@ Protocol（MCP）服务。它基于持续维护的 `pyicloud` 和 iCloud CloudKi
 
 ## 功能
 
-服务提供 8 个 MCP 工具：
+服务提供 15 个 MCP 工具：
 
 | 工具 | 能力 |
 | --- | --- |
@@ -20,14 +20,24 @@ Protocol（MCP）服务。它基于持续维护的 `pyicloud` 和 iCloud CloudKi
 | `list_reminder_lists` | 查询提醒事项列表及稳定 ID |
 | `list_reminders` | 查询未完成或已完成的提醒事项 |
 | `get_reminder` | 根据 ID 读取单条提醒事项 |
-| `create_reminder` | 创建提醒事项或子任务 |
+| `create_reminder` | 创建提醒事项，也可指定父任务 ID |
+| `list_subtasks` | 查询父提醒事项的直接子任务 |
+| `create_subtask` | 在父任务所在列表中创建子任务 |
 | `update_reminder` | 修改标题、备注、时间、优先级、旗标或全天状态 |
 | `set_reminder_completed` | 完成提醒事项或将其重新打开 |
+| `get_reminder_recurrence` | 查询提醒事项的重复规则 |
+| `set_reminder_recurrence` | 创建或更新每天、每周、每月或每年的重复规则 |
+| `clear_reminder_recurrence` | 仅当传入 `confirm=true` 时清除重复规则 |
+| `list_reminder_tags` | 查询提醒事项的标签 |
+| `add_reminder_tag` | 幂等地添加标签 |
+| `remove_reminder_tag` | 按 ID 或精确名称移除标签 |
 | `delete_reminder` | 仅当传入 `confirm=true` 时删除提醒事项 |
 
 其他能力：
 
-- 通过 `parent_reminder_id` 创建父任务和子任务
+- 使用专用工具创建和查询父子任务
+- 支持每天、每周、每月、每年重复，可配置间隔与重复次数
+- 支持标签的创建、查询与移除
 - 支持带时区的截止时间和全天提醒
 - 所有输入和输出时间统一使用北京时间（`Asia/Shanghai`，UTC+08:00）
 - 支持 Apple 优先级：`0` 无、`1` 高、`5` 中、`9` 低
@@ -168,6 +178,8 @@ ICLOUD_DEFAULT_REMINDER_LIST = "提醒事项"
 - “查询我的 Apple 提醒事项列表。”
 - “在工作列表中创建一个 8 月 31 日的全天提醒。”
 - “创建一个名为‘发布 v2’的父任务，然后把这些工作逐条创建为子任务。”
+- “将这条提醒设置为每两周重复一次，共重复六次。”
+- “给这条提醒添加 #国省V2 和 #接口设计 标签。”
 - “把指定 ID 的提醒事项标记为已完成。”
 - “先显示指定提醒事项，得到我确认后再删除。”
 
@@ -185,7 +197,7 @@ python -m pip install -e ".[dev]"
 python -m pytest
 ```
 
-测试覆盖列表选择、ISO 时间解析、子任务创建、局部更新、完成提醒、删除确认，
+测试覆盖列表选择、ISO 时间解析、子任务创建、重复规则、标签、局部更新、完成提醒、删除确认，
 以及真实的 stdio MCP 初始化和工具发现流程。测试使用模拟 iCloud 服务，不会修改
 开发者账户中的真实提醒事项。
 

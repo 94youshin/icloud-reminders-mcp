@@ -24,6 +24,16 @@
   ISO 8601 timestamp is interpreted as Beijing time; other offsets are converted
   to Beijing time; returned timestamps are serialized with `+08:00`.
 - `parent_reminder_id` creates a child under an existing reminder.
+- Prefer `create_subtask`; it looks up the parent and automatically uses the
+  same reminder list. `list_subtasks` returns immediate children only.
+- Recurrence frequencies are daily, weekly, monthly, and yearly. Interval must
+  be at least 1, occurrence count 0 means open-ended, and first day of week is
+  represented by an integer from 0 through 6.
+- Hashtags are separate CloudKit records linked to a reminder. Normalize an
+  optional leading `#`, avoid case-insensitive duplicates, and prefer stable
+  tag IDs when removing a tag.
+- Clearing recurrence changes future reminder behavior and requires
+  `confirm=true` in this MCP.
 - Deletion is irreversible from this MCP and requires `confirm=true`.
 - List titles are resolved only when exactly one exact case-insensitive match
   exists. Prefer stable list IDs.

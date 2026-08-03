@@ -26,6 +26,8 @@ def reminder(**overrides):
         "all_day": False,
         "time_zone": None,
         "parent_reminder_id": None,
+        "hashtag_ids": [],
+        "recurrence_rule_ids": [],
         "created": None,
         "modified": None,
     }
@@ -39,6 +41,8 @@ class FakeReminders:
         self.updated = []
         self.deleted = []
         self.created_kwargs = None
+        self.hashtags = {}
+        self.recurrence_rules = {}
 
     def lists(self):
         return [
@@ -72,6 +76,45 @@ class FakeReminders:
 
     def delete(self, item):
         self.deleted.append(item)
+
+    def tags_for(self, item):
+        return list(self.hashtags.get(item.id, []))
+
+    def create_hashtag(self, item, name):
+        tag = SimpleNamespace(
+            id=f"tag-{len(self.hashtags.get(item.id, [])) + 1}",
+            reminder_id=item.id,
+            name=name,
+            created=None,
+        )
+        self.hashtags.setdefault(item.id, []).append(tag)
+        item.hashtag_ids.append(tag.id)
+        return tag
+
+    def delete_hashtag(self, item, tag):
+        self.hashtags[item.id].remove(tag)
+        item.hashtag_ids.remove(tag.id)
+
+    def recurrence_rules_for(self, item):
+        return list(self.recurrence_rules.get(item.id, []))
+
+    def create_recurrence_rule(self, item, **kwargs):
+        rule = SimpleNamespace(
+            id=f"rule-{len(self.recurrence_rules.get(item.id, [])) + 1}",
+            reminder_id=item.id,
+            **kwargs,
+        )
+        self.recurrence_rules.setdefault(item.id, []).append(rule)
+        item.recurrence_rule_ids.append(rule.id)
+        return rule
+
+    def update_recurrence_rule(self, rule, **kwargs):
+        for key, value in kwargs.items():
+            setattr(rule, key, value)
+
+    def delete_recurrence_rule(self, item, rule):
+        self.recurrence_rules[item.id].remove(rule)
+        item.recurrence_rule_ids.remove(rule.id)
 
 
 class FakeService:
@@ -181,6 +224,52 @@ def test_create_child_reminder_with_due_date(client, fake_service):
     assert sent["due_date"].utcoffset().total_seconds() == 8 * 3600
     assert sent["time_zone"] == BEIJING_TIMEZONE_NAME
     assert sent["priority"] == 1
+
+
+def test_create_subtask_uses_parent_list(client, fake_service):
+    result = client.create_subtask("r1", title="Child task")
+    assert result["parent_reminder_id"] == "r1"
+    assert result["list_id"] == "l1"
+
+
+def test_list_subtasks_returns_only_immediate_children(client, fake_service):
+    fake_service.reminders.items["child"] = reminder(
+        id="child", title="Child", parent_reminder_id="r1"
+    )
+    fake_service.reminders.items["other"] = reminder(id="other", title="Other")
+    result = client.list_subtasks("r1")
+    assert [item["id"] for item in result] == ["child"]
+
+
+def test_set_and_clear_recurrence(client):
+    created = client.set_recurrence(
+        "r1", frequency="weekly", interval=2, occurrence_count=6, first_day_of_week=1
+    )
+    assert created == {
+        "id": "rule-1",
+        "reminder_id": "r1",
+        "frequency": "weekly",
+        "interval": 2,
+        "occurrence_count": 6,
+        "first_day_of_week": 1,
+    }
+    updated = client.set_recurrence("r1", frequency="monthly", interval=1)
+    assert updated["frequency"] == "monthly"
+    with pytest.raises(ValueError, match="confirm=true"):
+        client.clear_recurrence("r1", confirm=False)
+    assert client.clear_recurrence("r1", confirm=True)["deleted_rules"] == 1
+
+
+def test_add_list_and_remove_tag(client):
+    created = client.add_tag("r1", "#国省V2")
+    assert created["created"] is True
+    assert created["tag"]["name"] == "国省V2"
+    duplicate = client.add_tag("r1", "国省v2")
+    assert duplicate["created"] is False
+    assert [tag["name"] for tag in client.list_tags("r1")] == ["国省V2"]
+    removed = client.remove_tag("r1", "国省V2")
+    assert removed["removed"] is True
+    assert client.list_tags("r1") == []
 
 
 def test_update_only_changes_supplied_fields(client, fake_service):

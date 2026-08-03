@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "icloud-reminders-mcp"
-version = "0.2.0"
+version = "0.3.0"
 description = "A cross-platform MCP server for Apple Reminders powered by pyicloud"
 requires-python = ">=3.10"
 dependencies = [

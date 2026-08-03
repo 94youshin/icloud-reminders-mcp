@@ -1,6 +1,6 @@
 ---
 name: icloud-reminders-mcp
-description: Install, configure, and safely use the local iCloud Reminders MCP server backed by pyicloud. Use when the user wants Codex on Windows, Linux, or macOS to list Apple reminder lists, create parent reminders or child tasks, update or complete reminders, or delete reminders after confirmation without browser automation.
+description: Install, configure, and safely use the local iCloud Reminders MCP server backed by pyicloud. Use when the user wants Codex on Windows, Linux, or macOS to list Apple reminder lists, create or query parent and child tasks, configure repeated reminders, manage reminder hashtags, update or complete reminders, or delete reminders after confirmation without browser automation.
 ---
 
 # iCloud Reminders MCP
@@ -50,9 +50,13 @@ Follow this order:
 4. Interpret natural-language dates in Beijing time and convert them to ISO
    8601 before calling a tool, for example `2026-08-31T18:00:00+08:00`. Treat
    returned timestamps as `Asia/Shanghai` (`+08:00`).
-5. Create the parent first, then pass its returned ID as
-   `parent_reminder_id` for each child task.
-6. For deletion, show the exact reminder to the user and obtain approval before
+5. Create the parent first, then call `create_subtask` with its returned ID.
+6. Use recurrence frequencies `daily`, `weekly`, `monthly`, or `yearly`.
+   `occurrence_count=0` means no occurrence limit; `first_day_of_week` is 0-6.
+7. Accept tag names with or without a leading `#`; prefer tag IDs for removal.
+8. Confirm with the user before calling `clear_reminder_recurrence` with
+   `confirm=true`.
+9. For deletion, show the exact reminder to the user and obtain approval before
    calling `delete_reminder` with `confirm=true`.
 
 Available tools:
@@ -61,9 +65,17 @@ Available tools:
 - `list_reminder_lists`
 - `list_reminders`
 - `get_reminder`
+- `list_subtasks`
+- `create_subtask`
 - `create_reminder`
 - `update_reminder`
 - `set_reminder_completed`
+- `get_reminder_recurrence`
+- `set_reminder_recurrence`
+- `clear_reminder_recurrence`
+- `list_reminder_tags`
+- `add_reminder_tag`
+- `remove_reminder_tag`
 - `delete_reminder`
 
 Priority mapping is `0` none, `1` high, `5` medium, and `9` low. Use

@@ -12,7 +12,7 @@ Protocol（MCP）服务。它基于持续维护的 `pyicloud` 和 iCloud CloudKi
 
 ## 功能
 
-服务提供 15 个 MCP 工具：
+服务提供 16 个 MCP 工具：
 
 | 工具 | 能力 |
 | --- | --- |
@@ -65,7 +65,7 @@ cd icloud-reminders-mcp
 
 py -3.12 -m venv .venv
 .\.venv\Scripts\python.exe -m pip install --upgrade pip
-.\.venv\Scripts\python.exe -m pip install -e .
+.\.venv\Scripts\python.exe -m pip install .
 ```
 
 交互式登录 iCloud：
@@ -99,7 +99,7 @@ cd icloud-reminders-mcp
 
 python3 -m venv .venv
 ./.venv/bin/python -m pip install --upgrade pip
-./.venv/bin/python -m pip install -e .
+./.venv/bin/python -m pip install .
 ```
 
 交互式登录 iCloud：
@@ -108,14 +108,23 @@ python3 -m venv .venv
 ./.venv/bin/icloud auth login --username "your-apple-id@example.com"
 ```
 
-中国大陆账户需要追加 `--china-mainland`。无桌面的 Linux 主机必须配置可用的
-密钥环后端，并在首次登录和双重认证时提供交互式终端。不要把 MCP 服务直接暴露到
-公网。
+中国大陆账户需要追加 `--china-mainland`。在无桌面的 Linux 主机上，登录命令和 MCP
+服务必须使用同一个操作系统用户运行。建议配置安全的密钥环后端，使 pyicloud 能在
+会话过期后重新认证，又不需要把 Apple ID 密码写入配置。可以用下面的命令诊断当前
+密钥环后端：
+
+```bash
+./.venv/bin/python -m keyring diagnose
+```
+
+没有可用密钥环时，MCP 仍可复用已经认证成功的本地会话；重新登录或双重认证始终需要
+交互式终端。不要把 MCP 服务直接暴露到公网。
 
 ## 运行 MCP 服务
 
-通常由 MCP 客户端自动启动 stdio 进程。也可以使用以下命令进行启动检查；进程启动后
-会等待从标准输入接收 MCP 消息。
+通常由 MCP 客户端自动启动 stdio 进程。它不是独立 HTTP 服务，不应注册成对公网开放
+的 systemd 网络服务。也可以使用以下命令进行启动检查；进程启动后会等待从标准输入
+接收 MCP 消息。
 
 Windows：
 

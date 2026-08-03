@@ -4,6 +4,7 @@ from functools import lru_cache
 from typing import Any
 
 from mcp.server.fastmcp import FastMCP
+from pyicloud.services.reminders.client import RemindersAuthError
 
 from .client import BEIJING_TIMEZONE_NAME, RemindersClient
 from .config import Settings
@@ -24,16 +25,25 @@ def _client() -> RemindersClient:
     return RemindersClient(Settings.from_env())
 
 
+def _invoke(method_name: str, /, *args: Any, **kwargs: Any) -> Any:
+    """Call one client method and recover once from an explicit auth rejection."""
+    try:
+        return getattr(_client(), method_name)(*args, **kwargs)
+    except RemindersAuthError:
+        _client.cache_clear()
+        return getattr(_client(), method_name)(*args, **kwargs)
+
+
 @mcp.tool()
 def check_session_status() -> dict[str, Any]:
     """Check whether the saved iCloud session is trusted or needs 2FA."""
-    return _client().session_status()
+    return _invoke("session_status")
 
 
 @mcp.tool()
 def list_reminder_lists() -> list[dict[str, Any]]:
     """List Apple Reminder lists and their stable IDs."""
-    return _client().list_lists()
+    return _invoke("list_lists")
 
 
 @mcp.tool()
@@ -43,13 +53,13 @@ def list_reminders(
     limit: int = 200,
 ) -> list[dict[str, Any]]:
     """List reminders; all returned timestamps use Beijing time (+08:00)."""
-    return _client().list_items(list_id, include_completed, limit)
+    return _invoke("list_items", list_id, include_completed, limit)
 
 
 @mcp.tool()
 def get_reminder(reminder_id: str) -> dict[str, Any]:
     """Get one reminder by ID with timestamps in Beijing time (+08:00)."""
-    return _client().get_item(reminder_id)
+    return _invoke("get_item", reminder_id)
 
 
 @mcp.tool()
@@ -59,7 +69,7 @@ def list_subtasks(
     limit: int = 200,
 ) -> list[dict[str, Any]]:
     """List immediate child tasks of one parent reminder."""
-    return _client().list_subtasks(parent_reminder_id, include_completed, limit)
+    return _invoke("list_subtasks", parent_reminder_id, include_completed, limit)
 
 
 @mcp.tool()
@@ -73,7 +83,8 @@ def create_subtask(
     all_day: bool = False,
 ) -> dict[str, Any]:
     """Create a child task in the same list as its parent reminder."""
-    return _client().create_subtask(
+    return _invoke(
+        "create_subtask",
         parent_reminder_id,
         title=title,
         description=description,
@@ -97,7 +108,8 @@ def create_reminder(
     parent_reminder_id: str | None = None,
 ) -> dict[str, Any]:
     """Create a reminder or child task using Beijing time (Asia/Shanghai)."""
-    return _client().create_item(
+    return _invoke(
+        "create_item",
         title=title,
         list_id=list_id,
         description=description,
@@ -122,7 +134,8 @@ def update_reminder(
     all_day: bool | None = None,
 ) -> dict[str, Any]:
     """Update supplied fields; due values are normalized to Beijing time."""
-    return _client().update_item(
+    return _invoke(
+        "update_item",
         reminder_id,
         title=title,
         description=description,
@@ -137,13 +150,13 @@ def update_reminder(
 @mcp.tool()
 def set_reminder_completed(reminder_id: str, completed: bool = True) -> dict[str, Any]:
     """Complete or reopen a reminder using Beijing time for completion."""
-    return _client().set_completed(reminder_id, completed)
+    return _invoke("set_completed", reminder_id, completed)
 
 
 @mcp.tool()
 def get_reminder_recurrence(reminder_id: str) -> list[dict[str, Any]]:
     """Get recurrence rules attached to a reminder."""
-    return _client().list_recurrence_rules(reminder_id)
+    return _invoke("list_recurrence_rules", reminder_id)
 
 
 @mcp.tool()
@@ -155,7 +168,8 @@ def set_reminder_recurrence(
     first_day_of_week: int = 0,
 ) -> dict[str, Any]:
     """Create or update one daily, weekly, monthly, or yearly recurrence rule."""
-    return _client().set_recurrence(
+    return _invoke(
+        "set_recurrence",
         reminder_id,
         frequency=frequency,
         interval=interval,
@@ -170,31 +184,31 @@ def clear_reminder_recurrence(
     confirm: bool = False,
 ) -> dict[str, Any]:
     """Remove all recurrence rules after explicit confirmation."""
-    return _client().clear_recurrence(reminder_id, confirm=confirm)
+    return _invoke("clear_recurrence", reminder_id, confirm=confirm)
 
 
 @mcp.tool()
 def list_reminder_tags(reminder_id: str) -> list[dict[str, Any]]:
     """List hashtags attached to a reminder."""
-    return _client().list_tags(reminder_id)
+    return _invoke("list_tags", reminder_id)
 
 
 @mcp.tool()
 def add_reminder_tag(reminder_id: str, name: str) -> dict[str, Any]:
     """Attach a hashtag to a reminder; a leading # is optional."""
-    return _client().add_tag(reminder_id, name)
+    return _invoke("add_tag", reminder_id, name)
 
 
 @mcp.tool()
 def remove_reminder_tag(reminder_id: str, tag_id_or_name: str) -> dict[str, Any]:
     """Remove a hashtag from a reminder by stable ID or exact name."""
-    return _client().remove_tag(reminder_id, tag_id_or_name)
+    return _invoke("remove_tag", reminder_id, tag_id_or_name)
 
 
 @mcp.tool()
 def delete_reminder(reminder_id: str, confirm: bool = False) -> dict[str, Any]:
     """Delete a reminder. The caller must pass confirm=true after user approval."""
-    return _client().delete_item(reminder_id, confirm=confirm)
+    return _invoke("delete_item", reminder_id, confirm=confirm)
 
 
 def main() -> None:

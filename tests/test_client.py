@@ -2,6 +2,7 @@ from datetime import datetime, timezone
 from types import SimpleNamespace
 
 import pytest
+from keyring.errors import NoKeyringError
 
 from icloud_reminders_mcp.client import (
     BEIJING_TIMEZONE_NAME,
@@ -125,6 +126,14 @@ class FakeService:
         self.requires_2fa = False
         self.requires_2sa = False
 
+    def get_auth_status(self):
+        return {
+            "authenticated": True,
+            "trusted_session": self.is_trusted_session,
+            "requires_2fa": self.requires_2fa,
+            "requires_2sa": self.requires_2sa,
+        }
+
 
 def test_default_factory_hydrates_saved_session_without_fresh_login(monkeypatch):
     calls = []
@@ -175,6 +184,45 @@ def test_default_factory_reauthenticates_when_saved_session_expired(monkeypatch)
     assert calls[-1]["password"] == "saved-password"
 
 
+def test_default_factory_uses_valid_session_when_keyring_is_unavailable(monkeypatch):
+    class FakePyiCloudService:
+        def __init__(self, username, **kwargs):
+            self.username = username
+            self.kwargs = kwargs
+
+        def get_auth_status(self):
+            return {"authenticated": True}
+
+    monkeypatch.setattr("pyicloud.PyiCloudService", FakePyiCloudService)
+    monkeypatch.setattr(
+        "pyicloud.utils.get_password_from_keyring",
+        lambda username: (_ for _ in ()).throw(NoKeyringError()),
+    )
+
+    result = _default_service_factory(Settings(username="user@example.com"))
+
+    assert result.kwargs["password"] is None
+    assert result.kwargs["authenticate"] is False
+
+
+def test_default_factory_reports_unavailable_keyring_without_valid_session(monkeypatch):
+    class FakePyiCloudService:
+        def __init__(self, username, **kwargs):
+            pass
+
+        def get_auth_status(self):
+            return {"authenticated": False}
+
+    monkeypatch.setattr("pyicloud.PyiCloudService", FakePyiCloudService)
+    monkeypatch.setattr(
+        "pyicloud.utils.get_password_from_keyring",
+        lambda username: (_ for _ in ()).throw(NoKeyringError()),
+    )
+
+    with pytest.raises(RuntimeError, match="keyring is unavailable"):
+        _default_service_factory(Settings(username="user@example.com"))
+
+
 @pytest.fixture
 def fake_service():
     return FakeService()
@@ -193,6 +241,13 @@ def test_parse_due_interprets_naive_value_as_beijing_time():
     assert parsed is not None
     assert getattr(parsed.tzinfo, "key", None) == BEIJING_TIMEZONE_NAME
     assert parsed.utcoffset().total_seconds() == 8 * 3600
+
+
+def test_session_status_probes_live_auth_and_omits_username(client):
+    result = client.session_status()
+    assert result["authenticated"] is True
+    assert result["trusted_session"] is True
+    assert "username" not in result
 
 
 def test_parse_due_converts_other_offsets_to_beijing_time():

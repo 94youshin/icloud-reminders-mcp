@@ -15,9 +15,17 @@ BEIJING_TIMEZONE = ZoneInfo(BEIJING_TIMEZONE_NAME)
 
 def _default_service_factory(settings: Settings) -> Any:
     from pyicloud import PyiCloudService
+    from keyring.errors import KeyringError
     from pyicloud.utils import get_password_from_keyring
 
-    password = get_password_from_keyring(settings.username)
+    keyring_error: KeyringError | None = None
+    try:
+        password = get_password_from_keyring(settings.username)
+    except KeyringError as exc:
+        # A valid saved iCloud session does not require access to the password.
+        # This keeps headless Linux usable when no desktop keyring is available.
+        password = None
+        keyring_error = exc
     session_service = PyiCloudService(
         settings.username,
         password=password,
@@ -28,9 +36,15 @@ def _default_service_factory(settings: Settings) -> Any:
     if status["authenticated"]:
         return session_service
     if password is None:
+        keyring_hint = (
+            " The system keyring is unavailable; configure a secure keyring backend."
+            if keyring_error is not None
+            else ""
+        )
         raise RuntimeError(
             "No authenticated iCloud session or keyring password was found. "
             "Run 'icloud auth login' interactively and restart the MCP server."
+            f"{keyring_hint}"
         )
     return PyiCloudService(
         settings.username,
@@ -120,12 +134,13 @@ class RemindersClient:
 
     def session_status(self) -> dict[str, Any]:
         service = self.service
+        status = service.get_auth_status()
         return {
-            "username": self.settings.username,
+            "authenticated": status["authenticated"],
             "china_mainland": service.is_china_mainland,
-            "trusted_session": service.is_trusted_session,
-            "requires_2fa": service.requires_2fa,
-            "requires_2sa": service.requires_2sa,
+            "trusted_session": status["trusted_session"],
+            "requires_2fa": status["requires_2fa"],
+            "requires_2sa": status["requires_2sa"],
         }
 
     def list_lists(self) -> list[dict[str, Any]]:

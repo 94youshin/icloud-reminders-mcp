@@ -12,7 +12,7 @@ without macOS, AppleScript, or browser automation.
 
 ## Capabilities
 
-The server exposes fifteen MCP tools:
+The server exposes sixteen MCP tools:
 
 | Tool | Capability |
 | --- | --- |
@@ -65,7 +65,7 @@ cd icloud-reminders-mcp
 
 py -3.12 -m venv .venv
 .\.venv\Scripts\python.exe -m pip install --upgrade pip
-.\.venv\Scripts\python.exe -m pip install -e .
+.\.venv\Scripts\python.exe -m pip install .
 ```
 
 Authenticate interactively:
@@ -97,7 +97,7 @@ cd icloud-reminders-mcp
 
 python3 -m venv .venv
 ./.venv/bin/python -m pip install --upgrade pip
-./.venv/bin/python -m pip install -e .
+./.venv/bin/python -m pip install .
 ```
 
 Authenticate interactively:
@@ -106,14 +106,26 @@ Authenticate interactively:
 ./.venv/bin/icloud auth login --username "your-apple-id@example.com"
 ```
 
-Append `--china-mainland` when required. A headless Linux host must have a
-usable keyring backend and an interactive terminal for the initial login and
-2FA. Do not expose the MCP server directly to the public internet.
+Append `--china-mainland` when required. On a headless Linux host, run the MCP
+server and the login command as the same OS user. A secure keyring backend is
+recommended so pyicloud can renew an expired session without storing the Apple
+password in configuration. Diagnose the active backend with:
+
+```bash
+./.venv/bin/python -m keyring diagnose
+```
+
+The MCP server can still reuse an already authenticated saved session when no
+keyring backend is available. A new login or 2FA challenge always requires an
+interactive terminal. Do not expose the MCP server directly to the public
+internet.
 
 ## Run the server
 
-MCP clients normally start the stdio process automatically. For a direct smoke
-test, run the following command; it waits for MCP messages on standard input.
+MCP clients normally start the stdio process automatically. It is not a
+standalone HTTP daemon and should not be registered as a public systemd network
+service. For a direct smoke test, run the following command; it waits for MCP
+messages on standard input.
 
 Windows:
 

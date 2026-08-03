@@ -84,6 +84,8 @@ parent has been created successfully.
 
 ## Recover authentication
 
-If a tool reports 2FA, an untrusted session, changed Apple terms, or login
-failure, stop the MCP process, rerun the interactive `icloud auth login`
-command, and restart Codex. Do not automate Apple ID passwords or 2FA.
+The server rebuilds its cached client and retries once when iCloud explicitly
+rejects a Reminders request as unauthenticated. If a tool still reports 2FA, an
+untrusted session, changed Apple terms, or login failure, stop the MCP process,
+rerun the interactive `icloud auth login` command as the same OS user, and
+restart Codex. Do not automate Apple ID passwords or 2FA.

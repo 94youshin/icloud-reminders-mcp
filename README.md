@@ -1,5 +1,7 @@
 # iCloud Reminders MCP
 
+English | [简体中文](README.zh-CN.md)
+
 `icloud-reminders-mcp` is a cross-platform Model Context Protocol (MCP) server
 for Apple Reminders. It uses the maintained `pyicloud` package and iCloud's
 CloudKit v2 reminders service, so Windows and Linux machines can manage reminders
@@ -158,11 +160,11 @@ fails safely instead of choosing the wrong list.
 
 ## Example requests
 
-- “List my Apple reminder lists.”
-- “Create an all-day reminder on 31 August in the Work list.”
-- “Create a parent task named Release v2, then add these rows as child tasks.”
-- “Mark reminder `…` completed.”
-- “Show reminder `…`, then ask before deleting it.”
+- "List my Apple reminder lists."
+- "Create an all-day reminder on 31 August in the Work list."
+- "Create a parent task named Release v2, then add these rows as child tasks."
+- "Mark reminder `REMINDER_ID` completed."
+- "Show reminder `REMINDER_ID`, then ask before deleting it."
 
 For due dates, MCP tools accept ISO 8601. Prefer an explicit timezone, for
 example `2026-08-31T18:00:00+08:00`.

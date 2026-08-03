@@ -20,7 +20,7 @@ EXPECTED_TOOLS = {
 async def _list_tools_over_stdio():
     parameters = StdioServerParameters(
         command=sys.executable,
-        args=["-m", "pyicloud_reminders_mcp"],
+        args=["-m", "icloud_reminders_mcp"],
     )
     async with stdio_client(parameters) as (read, write):
         async with ClientSession(read, write) as session:

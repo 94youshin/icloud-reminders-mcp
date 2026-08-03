@@ -1,6 +1,6 @@
 import pytest
 
-from pyicloud_reminders_mcp.config import Settings
+from icloud_reminders_mcp.config import Settings
 
 
 def test_settings_require_username(monkeypatch):

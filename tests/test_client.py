@@ -3,8 +3,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from pyicloud_reminders_mcp.client import RemindersClient, parse_due
-from pyicloud_reminders_mcp.config import Settings
+from icloud_reminders_mcp.client import RemindersClient, parse_due
+from icloud_reminders_mcp.config import Settings
 
 
 def reminder(**overrides):

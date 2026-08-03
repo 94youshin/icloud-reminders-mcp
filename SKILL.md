@@ -1,48 +1,34 @@
 ---
-name: pyicloud-reminders-mcp
-description: Install, configure, and safely use the local Apple Reminders MCP server backed by pyicloud. Use when the user wants Codex on Windows, Linux, or macOS to list Apple reminder lists, create parent reminders or child tasks, update or complete reminders, or delete reminders after confirmation through iCloud without browser automation.
+name: icloud-reminders-mcp
+description: Install, configure, and safely use the local iCloud Reminders MCP server backed by pyicloud. Use when the user wants Codex on Windows, Linux, or macOS to list Apple reminder lists, create parent reminders or child tasks, update or complete reminders, or delete reminders after confirmation without browser automation.
 ---
 
-# Apple Reminders MCP
+# iCloud Reminders MCP
 
 Use the bundled Python MCP server to manage Apple Reminders through the current
 `pyicloud` CloudKit v2 reminders service. Treat it as an unofficial iCloud web
-integration and consult [references/pyicloud-notes.md](references/pyicloud-notes.md)
-when authentication, list selection, dates, or API compatibility matter.
+integration. Read [references/pyicloud-notes.md](references/pyicloud-notes.md)
+when authentication, list selection, dates, or API compatibility matter. Read
+[README.md](README.md) for complete Windows and Linux setup instructions.
 
-## Install
+## Install and authenticate
 
-From this skill directory on Windows PowerShell:
+Create a Python 3.10+ virtual environment, install the project, then run
+`icloud auth login --username "APPLE_ID"` from the virtual environment in an
+interactive terminal. Append `--china-mainland` for a mainland China account.
 
-```powershell
-py -3.12 -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -e .
-```
-
-Use Python 3.10 or newer. The dependency includes the `icloud` CLI needed for
-interactive authentication.
-
-## Authenticate
-
-Run authentication locally in an interactive terminal before configuring MCP:
-
-```powershell
-.\.venv\Scripts\icloud.exe auth login --username "APPLE_ID"
-```
-
-For a mainland China account, append `--china-mainland`. Complete password and
-2FA prompts locally. Never ask the user to paste an Apple password or 2FA code
-into chat, an environment variable, source code, or MCP configuration.
+Complete password and 2FA prompts locally. Never ask the user to paste an Apple
+password or 2FA code into chat, an environment variable, source code, or MCP
+configuration.
 
 ## Configure Codex
 
-Add a stdio server entry to the user's Codex MCP configuration. Use absolute
-paths and configure only the Apple ID username plus non-secret settings:
+Register a stdio server using the virtual environment's Python executable:
 
 ```toml
 [mcp_servers.apple-reminders]
-command = "C:/absolute/path/pyicloud-reminders-mcp/.venv/Scripts/python.exe"
-args = ["-m", "pyicloud_reminders_mcp"]
+command = "C:/absolute/path/icloud-reminders-mcp/.venv/Scripts/python.exe"
+args = ["-m", "icloud_reminders_mcp"]
 
 [mcp_servers.apple-reminders.env]
 ICLOUD_USERNAME = "APPLE_ID"
@@ -50,8 +36,9 @@ ICLOUD_CHINA_MAINLAND = "false"
 ICLOUD_DEFAULT_REMINDER_LIST = "Work"
 ```
 
-Restart Codex after changing MCP configuration. Omit the default list when the
-user prefers selecting a list each time.
+On Linux, use `/absolute/path/icloud-reminders-mcp/.venv/bin/python` for
+`command`. Restart Codex after changing MCP configuration. Omit the default
+list when the user prefers selecting a list each time.
 
 ## Use safely
 

@@ -20,8 +20,9 @@
 ## Reminder behavior
 
 - Priority values are: `0` none, `1` high, `5` medium, `9` low.
-- Supply timezone-aware ISO 8601 due dates. A naive timestamp is interpreted in
-  the machine's local timezone by this MCP.
+- This MCP uses Beijing time (`Asia/Shanghai`, UTC+08:00) consistently. A naive
+  ISO 8601 timestamp is interpreted as Beijing time; other offsets are converted
+  to Beijing time; returned timestamps are serialized with `+08:00`.
 - `parent_reminder_id` creates a child under an existing reminder.
 - Deletion is irreversible from this MCP and requires `confirm=true`.
 - List titles are resolved only when exactly one exact case-insensitive match

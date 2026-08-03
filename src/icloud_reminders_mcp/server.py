@@ -5,7 +5,7 @@ from typing import Any
 
 from mcp.server.fastmcp import FastMCP
 
-from .client import RemindersClient
+from .client import BEIJING_TIMEZONE_NAME, RemindersClient
 from .config import Settings
 
 
@@ -13,7 +13,8 @@ mcp = FastMCP(
     "Apple Reminders",
     instructions=(
         "Manage Apple Reminders through pyicloud. List IDs before writing when "
-        "the target list is unclear. Never delete without explicit user approval."
+        "the target list is unclear. Interpret and return all date-times in Beijing "
+        "time (Asia/Shanghai). Never delete without explicit user approval."
     ),
 )
 
@@ -41,13 +42,13 @@ def list_reminders(
     include_completed: bool = False,
     limit: int = 200,
 ) -> list[dict[str, Any]]:
-    """List reminders from a list ID or exact list title."""
+    """List reminders; all returned timestamps use Beijing time (+08:00)."""
     return _client().list_items(list_id, include_completed, limit)
 
 
 @mcp.tool()
 def get_reminder(reminder_id: str) -> dict[str, Any]:
-    """Get one reminder by its stable ID."""
+    """Get one reminder by ID with timestamps in Beijing time (+08:00)."""
     return _client().get_item(reminder_id)
 
 
@@ -60,10 +61,10 @@ def create_reminder(
     priority: int = 0,
     flagged: bool = False,
     all_day: bool = False,
-    time_zone_name: str | None = None,
+    time_zone_name: str = BEIJING_TIMEZONE_NAME,
     parent_reminder_id: str | None = None,
 ) -> dict[str, Any]:
-    """Create a reminder or child task. Due dates must be ISO 8601 with timezone."""
+    """Create a reminder or child task using Beijing time (Asia/Shanghai)."""
     return _client().create_item(
         title=title,
         list_id=list_id,
@@ -88,7 +89,7 @@ def update_reminder(
     flagged: bool | None = None,
     all_day: bool | None = None,
 ) -> dict[str, Any]:
-    """Update only the supplied fields of an existing reminder."""
+    """Update supplied fields; due values are normalized to Beijing time."""
     return _client().update_item(
         reminder_id,
         title=title,
@@ -103,7 +104,7 @@ def update_reminder(
 
 @mcp.tool()
 def set_reminder_completed(reminder_id: str, completed: bool = True) -> dict[str, Any]:
-    """Complete a reminder, or reopen it with completed=false."""
+    """Complete or reopen a reminder using Beijing time for completion."""
     return _client().set_completed(reminder_id, completed)
 
 

@@ -47,8 +47,9 @@ Follow this order:
 1. Call `check_session_status` when authentication may have expired.
 2. Call `list_reminder_lists` before a write if the destination is ambiguous.
 3. Prefer list IDs over titles for writes.
-4. Convert natural-language dates to timezone-aware ISO 8601 before calling a
-   tool, for example `2026-08-31T18:00:00+08:00`.
+4. Interpret natural-language dates in Beijing time and convert them to ISO
+   8601 before calling a tool, for example `2026-08-31T18:00:00+08:00`. Treat
+   returned timestamps as `Asia/Shanghai` (`+08:00`).
 5. Create the parent first, then pass its returned ID as
    `parent_reminder_id` for each child task.
 6. For deletion, show the exact reminder to the user and obtain approval before

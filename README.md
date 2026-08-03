@@ -29,6 +29,7 @@ Additional behavior:
 
 - Parent/child tasks through `parent_reminder_id`
 - Timezone-aware due dates and all-day reminders
+- Beijing time (`Asia/Shanghai`, UTC+08:00) for all inputs and outputs
 - Apple priority values: `0` none, `1` high, `5` medium, `9` low
 - Exact list-name resolution with stable ID support
 - Mainland China iCloud endpoints
@@ -166,8 +167,11 @@ fails safely instead of choosing the wrong list.
 - "Mark reminder `REMINDER_ID` completed."
 - "Show reminder `REMINDER_ID`, then ask before deleting it."
 
-For due dates, MCP tools accept ISO 8601. Prefer an explicit timezone, for
-example `2026-08-31T18:00:00+08:00`.
+For due dates, MCP tools accept ISO 8601 and always normalize values to Beijing
+time (`Asia/Shanghai`, UTC+08:00). A timestamp without an offset is interpreted
+as Beijing time; a timestamp with another offset is converted to Beijing time.
+For example, `2026-08-31T10:00:00Z` becomes
+`2026-08-31T18:00:00+08:00`. Returned timestamps also use `+08:00`.
 
 ## Development and tests
 

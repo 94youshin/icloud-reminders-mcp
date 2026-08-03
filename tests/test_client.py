@@ -4,6 +4,7 @@ from types import SimpleNamespace
 import pytest
 
 from icloud_reminders_mcp.client import (
+    BEIJING_TIMEZONE_NAME,
     RemindersClient,
     _default_service_factory,
     parse_due,
@@ -144,10 +145,17 @@ def client(fake_service):
     )
 
 
-def test_parse_due_adds_local_timezone_to_naive_value():
+def test_parse_due_interprets_naive_value_as_beijing_time():
     parsed = parse_due("2026-08-31T18:00:00")
     assert parsed is not None
-    assert parsed.tzinfo is not None
+    assert getattr(parsed.tzinfo, "key", None) == BEIJING_TIMEZONE_NAME
+    assert parsed.utcoffset().total_seconds() == 8 * 3600
+
+
+def test_parse_due_converts_other_offsets_to_beijing_time():
+    parsed = parse_due("2026-08-31T18:00:00Z")
+    assert parsed is not None
+    assert parsed.isoformat() == "2026-09-01T02:00:00+08:00"
 
 
 def test_list_requires_selector_when_multiple_lists_exist(client):
@@ -171,6 +179,7 @@ def test_create_child_reminder_with_due_date(client, fake_service):
     assert result["parent_reminder_id"] == "parent-1"
     sent = fake_service.reminders.created_kwargs
     assert sent["due_date"].utcoffset().total_seconds() == 8 * 3600
+    assert sent["time_zone"] == BEIJING_TIMEZONE_NAME
     assert sent["priority"] == 1
 
 
@@ -183,10 +192,28 @@ def test_update_only_changes_supplied_fields(client, fake_service):
     assert fake_service.reminders.updated == [item]
 
 
-def test_complete_sets_utc_timestamp(client, fake_service):
+def test_update_due_normalizes_time_and_sets_beijing_zone(client, fake_service):
+    result = client.update_item("r1", due="2026-08-31T10:00:00Z")
+    item = fake_service.reminders.items["r1"]
+    assert item.due_date.isoformat() == "2026-08-31T18:00:00+08:00"
+    assert item.time_zone == BEIJING_TIMEZONE_NAME
+    assert result["due"] == "2026-08-31T18:00:00+08:00"
+
+
+def test_complete_sets_beijing_timestamp(client, fake_service):
     result = client.set_completed("r1")
     assert result["completed"] is True
-    assert fake_service.reminders.items["r1"].completed_date.tzinfo == timezone.utc
+    completed_date = fake_service.reminders.items["r1"].completed_date
+    assert getattr(completed_date.tzinfo, "key", None) == BEIJING_TIMEZONE_NAME
+    assert result["completed_date"].endswith("+08:00")
+
+
+def test_read_timestamps_are_serialized_in_beijing_time(client, fake_service):
+    fake_service.reminders.items["r1"].due_date = datetime(
+        2026, 8, 31, 10, 0, tzinfo=timezone.utc
+    )
+    result = client.get_item("r1")
+    assert result["due"] == "2026-08-31T18:00:00+08:00"
 
 
 def test_delete_requires_explicit_confirmation(client, fake_service):

@@ -3,11 +3,14 @@ from __future__ import annotations
 from collections.abc import Callable
 from datetime import datetime, timezone
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from .config import Settings
 
 
 ServiceFactory = Callable[[Settings], Any]
+BEIJING_TIMEZONE_NAME = "Asia/Shanghai"
+BEIJING_TIMEZONE = ZoneInfo(BEIJING_TIMEZONE_NAME)
 
 
 def _default_service_factory(settings: Settings) -> Any:
@@ -38,7 +41,11 @@ def _default_service_factory(settings: Settings) -> Any:
 
 
 def _iso(value: datetime | None) -> str | None:
-    return value.isoformat() if value else None
+    if value is None:
+        return None
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=timezone.utc)
+    return value.astimezone(BEIJING_TIMEZONE).isoformat()
 
 
 def parse_due(value: str | None) -> datetime | None:
@@ -56,8 +63,8 @@ def parse_due(value: str | None) -> datetime | None:
             "due must be ISO 8601, for example 2026-08-31T18:00:00+08:00"
         ) from exc
     if parsed.tzinfo is None:
-        parsed = parsed.replace(tzinfo=datetime.now().astimezone().tzinfo)
-    return parsed
+        parsed = parsed.replace(tzinfo=BEIJING_TIMEZONE)
+    return parsed.astimezone(BEIJING_TIMEZONE)
 
 
 def serialize_list(item: Any) -> dict[str, Any]:
@@ -171,13 +178,15 @@ class RemindersClient:
         priority: int = 0,
         flagged: bool = False,
         all_day: bool = False,
-        time_zone_name: str | None = None,
+        time_zone_name: str = BEIJING_TIMEZONE_NAME,
         parent_reminder_id: str | None = None,
     ) -> dict[str, Any]:
         if not title.strip():
             raise ValueError("title must not be empty")
         if priority not in {0, 1, 5, 9}:
             raise ValueError("priority must be 0 (none), 1 (high), 5 (medium), or 9 (low)")
+        if time_zone_name != BEIJING_TIMEZONE_NAME:
+            raise ValueError("time_zone_name must be Asia/Shanghai")
         item = self.reminders.create(
             self._resolve_list_id(list_id),
             title.strip(),
@@ -216,8 +225,10 @@ class RemindersClient:
             item.desc = description
         if due is not None:
             item.due_date = parse_due(due)
+            item.time_zone = BEIJING_TIMEZONE_NAME
         elif clear_due:
             item.due_date = None
+            item.time_zone = None
         if priority is not None:
             item.priority = priority
         if flagged is not None:
@@ -230,7 +241,7 @@ class RemindersClient:
     def set_completed(self, reminder_id: str, completed: bool = True) -> dict[str, Any]:
         item = self.reminders.get(reminder_id)
         item.completed = completed
-        item.completed_date = datetime.now(timezone.utc) if completed else None
+        item.completed_date = datetime.now(BEIJING_TIMEZONE) if completed else None
         self.reminders.update(item)
         return serialize_reminder(item)
 
